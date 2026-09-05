@@ -57,13 +57,34 @@ export function cityToRegion(city: string): string {
   return CITY_TO_REGION[city] ?? 'vancouver-city';
 }
 
-export async function searchListings(region: string): Promise<{ total: number; properties: Property[] }> {
-  const result = await callTool('search_listings', {
-    cityOrRegion: region,
-    status: 'active',
-    limit: 100,
-  });
-  return result?.structuredContent?.result ?? { total: 0, properties: [] };
+// Zealty caps at 50 results per call. We run two searches (neighborhood + region-wide)
+// and merge them so our distance filter has ~100 candidates to work with.
+export async function searchListings(
+  region: string,
+  neighborhood?: string,
+): Promise<{ total: number; properties: Property[] }> {
+  const base = { cityOrRegion: region, status: 'active', limit: 50 };
+
+  const calls = [callTool('search_listings', base)];
+  if (neighborhood) calls.push(callTool('search_listings', { ...base, neighborhood }));
+
+  const results = await Promise.all(calls);
+
+  const seen = new Set<string>();
+  const properties: Property[] = [];
+  let total = 0;
+
+  for (const r of results) {
+    const batch = r?.structuredContent?.result;
+    if (!batch) continue;
+    total = Math.max(total, batch.total);
+    for (const p of batch.properties) {
+      const key = p.url;
+      if (!seen.has(key)) { seen.add(key); properties.push(p); }
+    }
+  }
+
+  return { total, properties };
 }
 
 export async function getMarketStats(region: string): Promise<MarketStats | null> {

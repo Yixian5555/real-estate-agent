@@ -10,6 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
+
 app.use('/api', propertiesRouter);
 
 app.listen(PORT, () => {

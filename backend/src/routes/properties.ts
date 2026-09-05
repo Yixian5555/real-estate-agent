@@ -37,15 +37,15 @@ router.get('/nearby', async (req, res) => {
 
     // Step 2: Fetch listings + market stats in parallel
     const [{ properties: raw }, marketStats] = await Promise.all([
-      searchListings(geo.zealtyRegion),
+      searchListings(geo.zealtyRegion, geo.neighborhood),
       getMarketStats(geo.zealtyRegion),
     ]);
 
     // Step 3: Rule-based filter layer (no AI) + distance sort
     const nearby = filterAndSort(raw, lat, lon, filters);
 
-    // Step 4: Claude narration layer
-    const narration = await narrateNearby(nearby, marketStats, geo.neighborhood, preferences);
+    // Step 4: Template narration (no AI)
+    const narration = narrateNearby(nearby, marketStats, geo.neighborhood, preferences);
 
     res.json({
       properties: nearby,
