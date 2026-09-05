@@ -12,10 +12,10 @@ function formatDistance(metres?: number): string {
   return metres < 1000 ? `${Math.round(metres)}m away` : `${(metres / 1000).toFixed(1)}km away`;
 }
 
-export function PropertyCard({ property: p }: { property: Property }) {
+export function PropertyCard({ property: p, sold = false }: { property: Property; sold?: boolean }) {
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, sold && styles.cardSold]}
       onPress={() => Linking.openURL(p.url)}
       activeOpacity={0.85}
     >
@@ -31,7 +31,10 @@ export function PropertyCard({ property: p }: { property: Property }) {
             <Text style={styles.distance}>{formatDistance(p.distanceMetres)}</Text>
           )}
         </View>
-        <Text style={styles.price}>{formatPrice(p.listingPrice)}</Text>
+        <View style={styles.row}>
+          <Text style={[styles.price, sold && styles.priceSold]}>{formatPrice(p.listingPrice)}</Text>
+          {sold && <Text style={styles.soldBadge}>SOLD</Text>}
+        </View>
         <Text style={styles.details}>
           {p.bedroomCount}bd · {p.bathroomCount}ba · {p.houseSize.toLocaleString()} sqft · {p.type}
         </Text>
@@ -63,4 +66,7 @@ const styles = StyleSheet.create({
   price: { fontSize: 20, fontWeight: '700', color: '#1d4ed8', marginTop: 4 },
   details: { fontSize: 13, color: '#6b7280', marginTop: 4 },
   area: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  cardSold: { opacity: 0.85, borderLeftWidth: 3, borderLeftColor: '#6b7280' },
+  priceSold: { color: '#6b7280' },
+  soldBadge: { fontSize: 11, fontWeight: '700', color: '#fff', backgroundColor: '#6b7280', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
 });

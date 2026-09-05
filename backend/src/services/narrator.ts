@@ -5,7 +5,6 @@ function formatPrice(price: number): string {
   return `$${(price / 1_000).toFixed(0)} thousand`;
 }
 
-// Converts raw metres into a natural spoken phrase based on proximity ring
 function describeProximity(metres: number): string {
   if (metres <= 50)  return 'This building right here';
   if (metres <= 150) return `Just ${Math.round(metres)} metres away on this block`;
@@ -17,34 +16,64 @@ function describeProximity(metres: number): string {
 // Template-based narration — no AI, no cost
 export function narrateNearby(
   properties: Property[],
+  soldProperties: Property[],
   marketStats: MarketStats | null,
   neighborhood: string,
   _userPreferences: string,
 ): string {
-  if (properties.length === 0) {
-    return `Nothing active on the market near you in ${neighborhood} right now.`;
+  if (properties.length === 0 && soldProperties.length === 0) {
+    return `Nothing listed or recently sold near you in ${neighborhood} right now.`;
   }
 
-  const top = properties[0];
-  const dist = top.distanceMetres ?? 0;
-  const proximity = describeProximity(dist);
-  const count = properties.length;
+  const parts: string[] = [];
 
-  let narration =
-    `${proximity} — ${top.streetAddress} — is a ${top.bedroomCount}-bedroom ${top.type} ` +
-    `listed at ${formatPrice(top.listingPrice)}, ` +
-    `${top.houseSize.toLocaleString()} square feet, ${top.bathroomCount} bath.`;
+  // Active listing lead
+  if (properties.length > 0) {
+    const top = properties[0];
+    const proximity = describeProximity(top.distanceMetres ?? 0);
+    parts.push(
+      `${proximity} — ${top.streetAddress} — is a ${top.bedroomCount}-bed ${top.type} ` +
+      `listed at ${formatPrice(top.listingPrice)}, ${top.houseSize.toLocaleString()} sqft.`
+    );
 
-  if (count > 1) {
-    const second = properties[1];
-    narration += ` There's also a ${second.bedroomCount}-bed ${second.type} at ${second.streetAddress}, ` +
-      `${formatPrice(second.listingPrice)}, ${Math.round(second.distanceMetres ?? 0)} metres away.`;
+    if (properties.length > 1) {
+      const second = properties[1];
+      parts.push(
+        `Also nearby: ${second.streetAddress}, ${second.bedroomCount}-bed ${second.type} ` +
+        `at ${formatPrice(second.listingPrice)}, ${Math.round(second.distanceMetres ?? 0)}m away.`
+      );
+    }
+  } else {
+    parts.push(`No active listings right near you in ${neighborhood}.`);
   }
 
+  // Sold comps
+  if (soldProperties.length > 0) {
+    const soldPrices = soldProperties.map(p => p.listingPrice);
+    const avgSold = soldPrices.reduce((a, b) => a + b, 0) / soldPrices.length;
+    const minSold = Math.min(...soldPrices);
+    const maxSold = Math.max(...soldPrices);
+
+    if (soldPrices.length === 1) {
+      parts.push(
+        `For reference: a similar property nearby sold recently for ${formatPrice(soldPrices[0])}.`
+      );
+    } else {
+      parts.push(
+        `For reference: ${soldPrices.length} nearby properties sold recently, ` +
+        `ranging from ${formatPrice(minSold)} to ${formatPrice(maxSold)}, ` +
+        `averaging ${formatPrice(Math.round(avgSold))}.`
+      );
+    }
+  }
+
+  // Market snapshot
   if (marketStats) {
-    narration += ` ${neighborhood} market: ${marketStats.count.toLocaleString()} active listings, ` +
-      `median ${formatPrice(marketStats.medianPrice)}, ${marketStats.medianDOM} days on market.`;
+    parts.push(
+      `${neighborhood} market: ${marketStats.count.toLocaleString()} active listings, ` +
+      `median ${formatPrice(marketStats.medianPrice)}, ${marketStats.medianDOM} days on market.`
+    );
   }
 
-  return narration;
+  return parts.join(' ');
 }

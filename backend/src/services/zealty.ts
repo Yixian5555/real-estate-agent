@@ -1,10 +1,17 @@
 import type { Property, MarketStats } from '../types';
 
 const ZEALTY_MCP = 'https://www.zealty.ca/api/mcp';
-const HEADERS = {
-  'Content-Type': 'application/json',
-  'Accept': 'application/json, text/event-stream',
-};
+
+function buildHeaders(withAuth = false): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json, text/event-stream',
+  };
+  if (withAuth && process.env.ZEALTY_TOKEN) {
+    headers['Authorization'] = `Bearer ${process.env.ZEALTY_TOKEN}`;
+  }
+  return headers;
+}
 
 // Maps city names (from reverse geocoding) to Zealty region codes
 export const CITY_TO_REGION: Record<string, string> = {
@@ -37,10 +44,14 @@ interface MCPResponse {
   error?: { message: string };
 }
 
-async function callTool(name: string, args: Record<string, unknown>): Promise<MCPResponse['result']> {
+async function callTool(
+  name: string,
+  args: Record<string, unknown>,
+  withAuth = false,
+): Promise<MCPResponse['result']> {
   const res = await fetch(ZEALTY_MCP, {
     method: 'POST',
-    headers: HEADERS,
+    headers: buildHeaders(withAuth),
     body: JSON.stringify({
       jsonrpc: '2.0',
       id: Date.now(),
@@ -64,12 +75,10 @@ export async function searchListings(
   neighborhood?: string,
 ): Promise<{ total: number; properties: Property[] }> {
   const base = { cityOrRegion: region, status: 'active', limit: 50 };
-
   const calls = [callTool('search_listings', base)];
   if (neighborhood) calls.push(callTool('search_listings', { ...base, neighborhood }));
 
   const results = await Promise.all(calls);
-
   const seen = new Set<string>();
   const properties: Property[] = [];
   let total = 0;
@@ -79,12 +88,40 @@ export async function searchListings(
     if (!batch) continue;
     total = Math.max(total, batch.total);
     for (const p of batch.properties) {
-      const key = p.url;
-      if (!seen.has(key)) { seen.add(key); properties.push(p); }
+      if (!seen.has(p.url)) { seen.add(p.url); properties.push(p); }
     }
   }
 
   return { total, properties };
+}
+
+// Sold listings require a Zealty account — set ZEALTY_TOKEN in .env
+// daysBack: how many days of sold history to search (default 180 = 6 months)
+export async function searchSoldListings(
+  region: string,
+  neighborhood?: string,
+  daysBack = 180,
+): Promise<Property[]> {
+  if (!process.env.ZEALTY_TOKEN) return [];
+
+  const base = { cityOrRegion: region, status: 'sold', daysBack, limit: 50 };
+  const calls = [callTool('search_listings', base, true)];
+  if (neighborhood) calls.push(callTool('search_listings', { ...base, neighborhood }, true));
+
+  const results = await Promise.allSettled(calls);
+  const seen = new Set<string>();
+  const properties: Property[] = [];
+
+  for (const r of results) {
+    if (r.status !== 'fulfilled') continue;
+    const batch = r.value?.structuredContent?.result;
+    if (!batch) continue;
+    for (const p of batch.properties) {
+      if (!seen.has(p.url)) { seen.add(p.url); properties.push(p); }
+    }
+  }
+
+  return properties;
 }
 
 export async function getMarketStats(region: string): Promise<MarketStats | null> {

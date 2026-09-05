@@ -107,15 +107,29 @@ export function HomeScreen({ filters, preferences }: Props) {
           <Text style={styles.error}>{error ?? location.error}</Text>
         ) : null}
 
-        {/* Listings */}
-        {data?.properties.map((p, i) => (
-          <PropertyCard key={`${p.streetAddress}-${i}`} property={p} />
-        ))}
-
-        {data && data.properties.length === 0 && !loading ? (
+        {/* Active listings */}
+        {data?.properties && data.properties.length > 0 ? (
+          <>
+            <Text style={styles.sectionLabel}>For Sale Nearby</Text>
+            {data.properties.map((p, i) => (
+              <PropertyCard key={`active-${p.url}-${i}`} property={p} />
+            ))}
+          </>
+        ) : data && !loading ? (
           <Text style={styles.empty}>
-            No listings within {filters.radiusMetres}m.{'\n'}Try increasing your search radius in Filters.
+            No active listings within range.{'\n'}Try increasing your search radius in Filters.
           </Text>
+        ) : null}
+
+        {/* Recently sold — reference only */}
+        {data?.soldProperties && data.soldProperties.length > 0 ? (
+          <>
+            <Text style={styles.sectionLabel}>Recently Sold Nearby</Text>
+            <Text style={styles.sectionHint}>For reference — sold in the last 6 months</Text>
+            {data.soldProperties.map((p, i) => (
+              <PropertyCard key={`sold-${p.url}-${i}`} property={p} sold />
+            ))}
+          </>
         ) : null}
 
         <View style={styles.bottomPad} />
@@ -154,5 +168,7 @@ const styles = StyleSheet.create({
   scanBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   error: { color: '#dc2626', textAlign: 'center', marginHorizontal: 16, marginBottom: 8 },
   empty: { textAlign: 'center', color: '#9ca3af', marginTop: 40, fontSize: 15, lineHeight: 24 },
+  sectionLabel: { fontSize: 13, fontWeight: '700', color: '#6b7280', letterSpacing: 0.8, textTransform: 'uppercase', marginHorizontal: 16, marginTop: 20, marginBottom: 4 },
+  sectionHint: { fontSize: 12, color: '#9ca3af', marginHorizontal: 16, marginBottom: 4 },
   bottomPad: { height: 40 },
 });

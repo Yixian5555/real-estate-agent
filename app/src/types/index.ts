@@ -34,7 +34,8 @@ export interface PropertyFilters {
 }
 
 export interface NearbyResponse {
-  properties: Property[];
+  properties: Property[];        // active listings
+  soldProperties: Property[];    // recently sold, for reference
   marketStats: MarketStats | null;
   narration: string;
   neighborhood: string;
