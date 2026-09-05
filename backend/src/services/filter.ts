@@ -12,29 +12,46 @@ function haversineMetres(lat1: number, lon1: number, lat2: number, lon2: number)
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Pure rule-based filtering + distance sort — no AI involved
+function applyPropertyFilters(p: Property & { distanceMetres: number }, filters: PropertyFilters): boolean {
+  if (filters.maxPrice !== undefined && p.listingPrice > filters.maxPrice) return false;
+  if (filters.minPrice !== undefined && p.listingPrice < filters.minPrice) return false;
+  if (filters.minBeds !== undefined && p.bedroomCount < filters.minBeds) return false;
+  if (filters.maxBeds !== undefined && p.bedroomCount > filters.maxBeds) return false;
+  if (filters.minBaths !== undefined && p.bathroomCount < filters.minBaths) return false;
+  if (filters.maxBaths !== undefined && p.bathroomCount > filters.maxBaths) return false;
+  if (filters.propertyTypes?.length && !filters.propertyTypes.includes(p.type)) return false;
+  return true;
+}
+
+// Cascading radius: tighten to the smallest ring that yields results.
+// Rings: 50m (this building) → 150m (this block) → 500m (street) → user's max radius
+// This way the narration says "this building" not "500m away" when you're standing right in front.
+const RADIUS_CASCADE = [50, 150, 500];
+
 export function filterAndSort(
   properties: Property[],
   userLat: number,
   userLon: number,
   filters: PropertyFilters,
 ): Property[] {
-  return properties
-    .map(p => ({
-      ...p,
-      distanceMetres: haversineMetres(userLat, userLon, p.latitude, p.longitude),
-    }))
-    .filter(p => {
-      if (p.distanceMetres > filters.radiusMetres) return false;
-      if (filters.maxPrice !== undefined && p.listingPrice > filters.maxPrice) return false;
-      if (filters.minPrice !== undefined && p.listingPrice < filters.minPrice) return false;
-      if (filters.minBeds !== undefined && p.bedroomCount < filters.minBeds) return false;
-      if (filters.maxBeds !== undefined && p.bedroomCount > filters.maxBeds) return false;
-      if (filters.minBaths !== undefined && p.bathroomCount < filters.minBaths) return false;
-      if (filters.maxBaths !== undefined && p.bathroomCount > filters.maxBaths) return false;
-      if (filters.propertyTypes?.length && !filters.propertyTypes.includes(p.type)) return false;
-      return true;
-    })
-    .sort((a, b) => a.distanceMetres - b.distanceMetres)
-    .slice(0, 5);
+  const withDistance = properties.map(p => ({
+    ...p,
+    distanceMetres: haversineMetres(userLat, userLon, p.latitude, p.longitude),
+  }));
+
+  const maxRadius = filters.radiusMetres;
+  const radii = [...RADIUS_CASCADE.filter(r => r <= maxRadius), maxRadius];
+  // Deduplicate radii
+  const rings = [...new Set(radii)];
+
+  for (const radius of rings) {
+    const candidates = withDistance
+      .filter(p => p.distanceMetres <= radius && applyPropertyFilters(p, filters))
+      .sort((a, b) => a.distanceMetres - b.distanceMetres)
+      .slice(0, 5);
+
+    if (candidates.length > 0) return candidates;
+  }
+
+  return [];
 }

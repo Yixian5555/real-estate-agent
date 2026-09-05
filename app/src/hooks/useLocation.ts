@@ -25,13 +25,13 @@ export function useLocation(): LocationState {
       }
 
       const current = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
+        accuracy: Location.Accuracy.High,
       });
       setState({ coords: current.coords, error: null, loading: false });
 
-      // Update every 100m moved so we don't hammer the backend
+      // High accuracy, update every 20m — precise enough to detect building changes
       subscription = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.Balanced, distanceInterval: 100 },
+        { accuracy: Location.Accuracy.High, distanceInterval: 20 },
         loc => setState(prev => ({ ...prev, coords: loc.coords })),
       );
     })();
