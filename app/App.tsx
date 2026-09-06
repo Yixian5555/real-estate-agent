@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Text } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Text, View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,7 +16,6 @@ export default function App() {
   const [preferences, setPreferences] = useState('');
   const [ready, setReady] = useState(false);
 
-  // Restore saved preferences on launch
   useEffect(() => {
     (async () => {
       try {
@@ -32,17 +31,42 @@ export default function App() {
     })();
   }, []);
 
-  async function handleFiltersChange(f: PropertyFilters) {
+  const handleFiltersChange = useCallback(async (f: PropertyFilters) => {
     setFilters(f);
     await AsyncStorage.setItem('filters', JSON.stringify(f)).catch(() => {});
-  }
+  }, []);
 
-  async function handlePreferencesChange(p: string) {
+  const handlePreferencesChange = useCallback(async (p: string) => {
     setPreferences(p);
     await AsyncStorage.setItem('preferences', p).catch(() => {});
-  }
+  }, []);
 
-  if (!ready) return null;
+  // Stable screen components — defined outside render to prevent remounting on parent re-render
+  const ScoutScreen = useCallback(
+    () => <HomeScreen filters={filters} preferences={preferences} />,
+    [filters, preferences],
+  );
+
+  const FiltersScreen = useCallback(
+    () => (
+      <SettingsScreen
+        filters={filters}
+        preferences={preferences}
+        onFiltersChange={handleFiltersChange}
+        onPreferencesChange={handlePreferencesChange}
+      />
+    ),
+    [filters, preferences, handleFiltersChange, handlePreferencesChange],
+  );
+
+  // Show a spinner instead of blank white while AsyncStorage loads
+  if (!ready) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1e40af' }}>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer>
@@ -57,30 +81,20 @@ export default function App() {
       >
         <Tab.Screen
           name="Scout"
+          component={ScoutScreen}
           options={{
             tabBarLabel: 'Scout',
             tabBarIcon: () => <Text style={{ fontSize: 22 }}>📍</Text>,
           }}
-        >
-          {() => <HomeScreen filters={filters} preferences={preferences} />}
-        </Tab.Screen>
-
+        />
         <Tab.Screen
           name="Filters"
+          component={FiltersScreen}
           options={{
             tabBarLabel: 'Filters',
             tabBarIcon: () => <Text style={{ fontSize: 22 }}>⚙️</Text>,
           }}
-        >
-          {() => (
-            <SettingsScreen
-              filters={filters}
-              preferences={preferences}
-              onFiltersChange={handleFiltersChange}
-              onPreferencesChange={handlePreferencesChange}
-            />
-          )}
-        </Tab.Screen>
+        />
       </Tab.Navigator>
     </NavigationContainer>
   );

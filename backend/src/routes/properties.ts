@@ -7,6 +7,11 @@ import type { PropertyFilters } from '../types';
 
 const router = Router();
 
+const toNum = (v: unknown): number | undefined => {
+  const n = Number(v);
+  return isNaN(n) ? undefined : n;
+};
+
 router.get('/nearby', async (req, res) => {
   const lat = parseFloat(req.query.lat as string);
   const lon = parseFloat(req.query.lon as string);
@@ -17,16 +22,16 @@ router.get('/nearby', async (req, res) => {
   }
 
   const filters: PropertyFilters = {
-    maxPrice:      req.query.maxPrice  ? Number(req.query.maxPrice)  : undefined,
-    minPrice:      req.query.minPrice  ? Number(req.query.minPrice)  : undefined,
-    minBeds:       req.query.minBeds   ? Number(req.query.minBeds)   : undefined,
-    maxBeds:       req.query.maxBeds   ? Number(req.query.maxBeds)   : undefined,
-    minBaths:      req.query.minBaths  ? Number(req.query.minBaths)  : undefined,
-    maxBaths:      req.query.maxBaths  ? Number(req.query.maxBaths)  : undefined,
+    maxPrice:      toNum(req.query.maxPrice),
+    minPrice:      toNum(req.query.minPrice),
+    minBeds:       toNum(req.query.minBeds),
+    maxBeds:       toNum(req.query.maxBeds),
+    minBaths:      toNum(req.query.minBaths),
+    maxBaths:      toNum(req.query.maxBaths),
     propertyTypes: req.query.propertyTypes
       ? (req.query.propertyTypes as string).split(',')
       : undefined,
-    radiusMetres:  req.query.radius ? Number(req.query.radius) : 500,
+    radiusMetres:  toNum(req.query.radius) ?? 500,
   };
 
   const preferences = (req.query.preferences as string) ?? '';

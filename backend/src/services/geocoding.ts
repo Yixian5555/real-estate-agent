@@ -25,6 +25,7 @@ export async function reverseGeocode(lat: number, lon: number): Promise<GeoLocat
   const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`;
   const res = await fetch(url, {
     headers: { 'User-Agent': 'RealEstateScout/1.0 (personal project)' },
+    signal: AbortSignal.timeout(8000),
   });
 
   if (!res.ok) throw new Error(`Nominatim error: ${res.status}`);

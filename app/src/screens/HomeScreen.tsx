@@ -11,12 +11,8 @@ import * as Speech from 'expo-speech';
 import { useLocation } from '../hooks/useLocation';
 import { useNearbyProperties } from '../hooks/useNearbyProperties';
 import { PropertyCard } from '../components/PropertyCard';
+import { formatPrice } from '../utils/format';
 import type { PropertyFilters } from '../types';
-
-function formatPrice(price: number): string {
-  if (price >= 1_000_000) return `$${(price / 1_000_000).toFixed(1)}M`;
-  return `$${(price / 1_000).toFixed(0)}k`;
-}
 
 interface Props {
   filters: PropertyFilters;

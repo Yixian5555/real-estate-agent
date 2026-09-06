@@ -1,22 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, Image } from 'react-native';
 import type { Property } from '../types';
-
-function formatPrice(price: number): string {
-  if (price >= 1_000_000) return `$${(price / 1_000_000).toFixed(2)}M`;
-  return `$${(price / 1_000).toFixed(0)}k`;
-}
-
-function formatDistance(metres?: number): string {
-  if (metres === undefined) return '';
-  return metres < 1000 ? `${Math.round(metres)}m away` : `${(metres / 1000).toFixed(1)}km away`;
-}
+import { formatPrice, formatDistance } from '../utils/format';
 
 export function PropertyCard({ property: p, sold = false }: { property: Property; sold?: boolean }) {
   return (
     <TouchableOpacity
       style={[styles.card, sold && styles.cardSold]}
-      onPress={() => Linking.openURL(p.url)}
+      onPress={() => p.url && Linking.openURL(p.url)}
       activeOpacity={0.85}
     >
       {p.images[0] ? (

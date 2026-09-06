@@ -52,6 +52,7 @@ async function callTool(
   const res = await fetch(ZEALTY_MCP, {
     method: 'POST',
     headers: buildHeaders(withAuth),
+    signal: AbortSignal.timeout(8000),
     body: JSON.stringify({
       jsonrpc: '2.0',
       id: Date.now(),
@@ -59,6 +60,7 @@ async function callTool(
       params: { name, arguments: args },
     }),
   });
+  if (!res.ok) throw new Error(`Zealty HTTP ${res.status}`);
   const json = await res.json() as MCPResponse;
   if (json.error) throw new Error(`Zealty MCP: ${json.error.message}`);
   return json.result;
@@ -78,13 +80,14 @@ export async function searchListings(
   const calls = [callTool('search_listings', base)];
   if (neighborhood) calls.push(callTool('search_listings', { ...base, neighborhood }));
 
-  const results = await Promise.all(calls);
+  const results = await Promise.allSettled(calls);
   const seen = new Set<string>();
   const properties: Property[] = [];
   let total = 0;
 
   for (const r of results) {
-    const batch = r?.structuredContent?.result;
+    if (r.status !== 'fulfilled') continue;
+    const batch = r.value?.structuredContent?.result;
     if (!batch) continue;
     total = Math.max(total, batch.total);
     for (const p of batch.properties) {
